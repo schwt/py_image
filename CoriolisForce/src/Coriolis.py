@@ -42,7 +42,7 @@ def plot_rectangle(data, x0, y0, lx, ly, angle, color):
     rot_ys = np.round(sin(angle) * (rec_xs - x0) + cos(angle) * (rec_ys - y0)).astype(int) + y0
     data[rot_ys, rot_xs] = color
     data[rot_ys, rot_xs] = color
-    data[rot_ys+1, rot_xs] = color
+    data[rot_ys+1, rot_xs] = color  # 防止空位
 
 def print_word(data, v):
     temp = np.zeros((nx, ny, 3), dtype=np.uint8)
