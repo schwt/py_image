@@ -8,9 +8,10 @@ from src.Loger import Loger
 
 f_output = '../data/output.png'
 v_output = "../data/output.mp4"
-radius = 200
-nx = ny = 800
-x0 = y0 = int(nx/2)
+radius = 200         # 轨道半径（喷射口处）
+nx = ny = 800        # 视频尺寸
+x0 = y0 = int(nx/2)  # 中心点坐标
+lx, ly = 20, 10      # 喷嘴长宽
 
 def make_circle():
     data = np.zeros((nx, ny, 3), dtype=np.uint8)
@@ -22,6 +23,26 @@ def plot_point(x, y, data, color):
     color = tuple(int(x) for x in color)
     cv2.circle(data, (int(round(x)), int(round(y))), 3, color, thickness=-1)
     return
+
+# 画任意角度的矩形
+def plot_rectangle(data, x0, y0, lx, ly, angle, color):
+    """
+    @ data  : np.array
+    @ x0, y0: 矩形中心坐标
+    @ lx, ly: 矩形x,y方向边长
+    @ angle : 顺时针旋转角度
+    @ color : (r, g, b)
+    """
+    x0, y0 = int(round(x0)), int(round(y0))
+    bx, by = int(lx/2), int(ly/2)
+    data_rec = np.zeros(data.shape[:2], dtype=np.uint8)
+    cv2.rectangle(data_rec, (x0-bx, y0-by), (x0+bx, y0+by), 255, thickness=-1)
+    rec_ys, rec_xs = np.where(data_rec == 255)
+    rot_xs = np.round(cos(angle) * (rec_xs - x0) - sin(angle) * (rec_ys - y0)).astype(int) + x0
+    rot_ys = np.round(sin(angle) * (rec_xs - x0) + cos(angle) * (rec_ys - y0)).astype(int) + y0
+    data[rot_ys, rot_xs] = color
+    data[rot_ys, rot_xs] = color
+    data[rot_ys+1, rot_xs] = color
 
 def print_word(data, v):
     temp = np.zeros((nx, ny, 3), dtype=np.uint8)
@@ -57,20 +78,24 @@ def plot_one_movie(data_circle, videoWriter, drip_list, nv):
     for t in range(frames + 1):
         idata = data_circle_word.copy()
         theta = t * omega
-        x1 = x0 + radius * cos(theta)
-        y1 = y0 + radius * sin(theta)
-        x2 = x0 + radius * cos(theta + pi)
-        y2 = y0 + radius * sin(theta + pi)
-        plot_point(x1, y1, idata, (0, 255, 255))                   # 画喷嘴1
-        plot_point(x2, y2, idata, (0, 255, 255))                   # 画喷嘴2
+        x1_drip = x0 + radius * cos(theta)
+        y1_drip = y0 + radius * sin(theta)
+        x2_drip = x0 + radius * cos(theta + pi)
+        y2_drip = y0 + radius * sin(theta + pi)
+        x1_inj = x1_drip + lx / 2 * cos(theta)
+        y1_inj = y1_drip + lx / 2 * sin(theta)
+        x2_inj = x2_drip + lx / 2 * cos(theta + pi)
+        y2_inj = y2_drip + lx / 2 * sin(theta + pi)
+        plot_rectangle(idata, x1_inj, y1_inj, lx, ly, theta, (0, 200, 200))  # 画喷嘴1
+        plot_rectangle(idata, x2_inj, y2_inj, lx, ly, theta, (0, 200, 200))  # 画喷嘴1
         for drip in drip_list:
             if drip.valid:
                 drip.move()
-                plot_point(drip.xy[0], drip.xy[1], idata, drip.color)  # 画水滴
-        if t % drip_step == 0:                                      # 喷水滴
+                plot_point(drip.xy[0], drip.xy[1], idata, drip.color)   # 画水滴
+        if t % drip_step == 0:                                          # 喷水滴
             beta = alpha + theta + pi / 2
-            new_drip1 = Drip(x1, y1, v, beta, (255, 255, 100))
-            new_drip2 = Drip(x2, y2, v, beta+pi, (255, 100, 255))
+            new_drip1 = Drip(x1_drip, y1_drip, v, beta, (255, 255, 100))
+            new_drip2 = Drip(x2_drip, y2_drip, v, beta+pi, (255, 100, 255))
             drip_list.append(new_drip1)
             drip_list.append(new_drip2)
         videoWriter.write(idata)
@@ -82,8 +107,7 @@ def plot_movie(data_circle):
     videoWriter = cv2.VideoWriter(v_output, cv2.VideoWriter_fourcc(*'MP4V'), fps, (nx, ny))
     plot_one_movie(data_circle, videoWriter, drip_list, 0.2)
     plot_one_movie(data_circle, videoWriter, drip_list, 0.5)
-    plot_one_movie(data_circle, videoWriter, drip_list, 0.8)
-    plot_one_movie(data_circle, videoWriter, drip_list, 0.9)
+    plot_one_movie(data_circle, videoWriter, drip_list, 0.85)
     plot_one_movie(data_circle, videoWriter, drip_list, 1)
     plot_one_movie(data_circle, videoWriter, drip_list, 5)
 
